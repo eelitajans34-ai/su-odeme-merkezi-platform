@@ -89,14 +89,18 @@ export class NotificationService {
     if (!this.isEmailDeliverable(channelStatus) || !this.opts.emailFrom) {
       return { status: 'NOT_SENT_PROVIDER_NOT_CONFIGURED' };
     }
+    let smtpUrl: string | null = null;
     try {
-      const smtpUrl = await this.secrets.reveal(db, this.opts.emailSecretRef);
+      smtpUrl = await this.secrets.reveal(db, this.opts.emailSecretRef);
       if (!smtpUrl) return { status: 'NOT_SENT_PROVIDER_NOT_CONFIGURED' };
-      const transport = nodemailer.createTransport(smtpUrl);
+      // Bağlantı kurulamazsa (ör. port kapalı) 2 dk beklemek yerine kısa sürede ve açık nedenle başarısız ol
+      const transport = nodemailer.createTransport({ url: smtpUrl, connectionTimeout: 20_000, greetingTimeout: 15_000, socketTimeout: 30_000 } as any);
       await transport.sendMail({ from: this.opts.emailFrom, to: email.to, subject: email.subject, text: email.text });
       return { status: 'SENT' };
     } catch (err) {
-      return { status: 'FAILED', error: (err as Error).message.slice(0, 200) };
+      const e = err as Error & { code?: string; responseCode?: number };
+      const detail = [e.code, e.responseCode, e.message].filter(Boolean).join(' ');
+      return { status: 'FAILED', error: redactSmtp(detail, smtpUrl).slice(0, 300) };
     }
   }
 
@@ -110,4 +114,20 @@ export class NotificationService {
       [input.eventType, input.severity ?? 'WARNING', input.title, input.body, JSON.stringify(input.data ?? {})],
     );
   }
+}
+
+/** Hata metninden SMTP adresini, kullanıcı adını ve parolayı çıkarır (günlüğe gizli bilgi düşmemesi için). */
+export function redactSmtp(text: string, smtpUrl: string | null): string {
+  if (!smtpUrl) return text;
+  let out = text;
+  const parts: string[] = [smtpUrl];
+  try {
+    const u = new URL(smtpUrl);
+    if (u.password) parts.push(u.password, decodeURIComponent(u.password));
+    if (u.username) parts.push(u.username, decodeURIComponent(u.username));
+  } catch {
+    /* geçersiz adres: yalnızca tamamı maskelenir */
+  }
+  for (const p of parts.filter((x) => x && x.length >= 3).sort((a, b) => b.length - a.length)) out = out.split(p).join('[GİZLENDİ]');
+  return out;
 }

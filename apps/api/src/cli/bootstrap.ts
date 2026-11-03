@@ -74,5 +74,6 @@ export async function bootstrapSuperAdmin(deps: Deps, opts: BootstrapOptions): P
   });
   if (sent.status === 'SENT') return { status: result.status, userId: result.userId, inviteUrl: '[e-posta ile gönderildi]', delivery: 'EMAIL_SENT' };
   if (!deps.config.isProduction) return { status: result.status, userId: result.userId, inviteUrl, delivery: 'PRINTED_FOR_DEV' };
-  throw new Error('Üretimde davet yalnızca e-posta ile gönderilebilir, ancak e-posta kanalı yapılandırılmadı veya gönderim başarısız. Önce SMTP yapılandırın, ardından --reissue-invite ile tekrar çalıştırın.');
+  const reason = sent.status === 'FAILED' ? `gönderim başarısız: ${sent.error ?? 'bilinmeyen hata'}` : 'e-posta kanalı yapılandırılmadı';
+  throw new Error(`Üretimde davet yalnızca e-posta ile gönderilebilir (${reason}). SMTP bilgisini düzeltin, ardından --reissue-invite ile tekrar çalıştırın.`);
 }

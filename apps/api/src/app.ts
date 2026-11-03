@@ -11,7 +11,7 @@ import { AdapterRegistry } from './integrations/registry.js';
 import { AuthService } from './auth/service.js';
 import { makeGuards } from './auth/guards.js';
 import { AppError } from './lib/errors.js';
-import { LOG_REDACT_PATHS } from './lib/redact.js';
+import { LOG_REDACT_PATHS, serializeRequest } from './lib/redact.js';
 import { IntegrationService } from './services/integrations.js';
 import { NotificationService } from './services/notifications.js';
 import { SecretStore } from './services/secrets.js';
@@ -40,7 +40,7 @@ export function createDeps(config: AppConfig, db: Db = createPool(config.DATABAS
 export async function buildApp(deps: Deps): Promise<FastifyInstance> {
   const { config } = deps;
   const app = Fastify({
-    logger: config.LOG_LEVEL === 'silent' ? false : { level: config.LOG_LEVEL, redact: { paths: LOG_REDACT_PATHS, censor: '[GİZLENDİ]' } },
+    logger: config.LOG_LEVEL === 'silent' ? false : { level: config.LOG_LEVEL, redact: { paths: LOG_REDACT_PATHS, censor: '[GİZLENDİ]' }, serializers: { req: serializeRequest as any } },
     trustProxy: config.TRUST_PROXY,
     bodyLimit: 256 * 1024,
   });

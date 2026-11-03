@@ -93,6 +93,25 @@ describe('entegrasyon: güvenlik ve süreçler', () => {
     expect((await t.app.inject({ method: 'POST', url: '/api/auth/mfa/disable', headers: s.headers, payload: { password: PASSWORD } })).statusCode).toBe(403);
   });
 
+  it('yeniden davet: geçerli davet varken "if-expired" bağlantıyı bozmaz; süresi dolunca yenisini gönderir', async () => {
+    const r1 = await bootstrapSuperAdmin(t.deps, { email: SUPER_ADMIN_EMAIL });
+    if (r1.status !== 'INVITE_CREATED') throw new Error();
+    const token1 = new URL(r1.inviteUrl).searchParams.get('token')!;
+    // Servis yeniden başladı (ör. ücretsiz planda uyandı): geçerli davet korunur
+    const r2 = await bootstrapSuperAdmin(t.deps, { email: SUPER_ADMIN_EMAIL, reissueInviteIfExpired: true });
+    expect(r2.status).toBe('ALREADY_EXISTS');
+    // Davetin süresi dolmuş gibi
+    await t.deps.db.query(`UPDATE auth_tokens SET expires_at = now() - interval '1 minute' WHERE purpose = 'ADMIN_INVITE'`);
+    const r3 = await bootstrapSuperAdmin(t.deps, { email: SUPER_ADMIN_EMAIL, reissueInviteIfExpired: true });
+    expect(r3.status).toBe('INVITE_REISSUED');
+    if (r3.status !== 'INVITE_REISSUED') throw new Error();
+    const token3 = new URL(r3.inviteUrl).searchParams.get('token')!;
+    expect((await t.app.inject({ method: 'POST', url: '/api/auth/invite/accept', payload: { token: token1, password: PASSWORD } })).statusCode).toBe(400);
+    expect((await t.app.inject({ method: 'POST', url: '/api/auth/invite/accept', payload: { token: token3, password: PASSWORD } })).statusCode).toBe(200);
+    // Hesap etkinleştikten sonra hiçbir yeniden davet seçeneği işlem yapmaz
+    expect((await bootstrapSuperAdmin(t.deps, { email: SUPER_ADMIN_EMAIL, reissueInvite: true })).status).toBe('ALREADY_EXISTS');
+  });
+
   it('mevcut hesaba süper yönetici yetkisi açık onay olmadan verilmez', async () => {
     await createUser(t, SUPER_ADMIN_EMAIL);
     const r = await bootstrapSuperAdmin(t.deps, { email: SUPER_ADMIN_EMAIL });

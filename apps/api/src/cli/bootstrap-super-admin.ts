@@ -10,6 +10,7 @@ try {
     email: config.SUPER_ADMIN_EMAIL,
     confirmExistingAccount: args.has('--confirm-existing-account'),
     reissueInvite: args.has('--reissue-invite'),
+    reissueInviteIfExpired: args.has('--reissue-invite-if-expired'),
   });
   if (r.status === 'ALREADY_EXISTS' || r.status === 'REFUSED') {
     console.log(r.message);

@@ -27,6 +27,8 @@ const schema = z.object({
   SMS_PROVIDER_SECRET_REF: z.string().optional(),
   BACKUP_STORAGE_REFERENCE: z.string().optional(),
   AUTH_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).max(100000).default(10),
+  // Doluysa web arayüzünün derlenmiş dosyaları (apps/web/dist) API ile aynı adresten sunulur (tek servis, aynı köken).
+  WEB_DIST_DIR: z.string().optional(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 });
 

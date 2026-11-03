@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import { registerWebStatic } from './web-static.js';
 import rateLimit from '@fastify/rate-limit';
 import type { AppConfig } from './config.js';
 import type { Deps } from './context.js';
@@ -61,6 +62,8 @@ export async function buildApp(deps: Deps): Promise<FastifyInstance> {
   // TLS zorunluluğu: üretimde yalnızca HTTPS (TLS sonlandırması vekil sunucuda yapılır)
   if (config.isProduction) {
     app.addHook('onRequest', async (req, reply) => {
+      // Barındırma platformunun iç sağlık denetimi TLS'siz gelir; yalnızca durum bilgisi döner, veri içermez.
+      if (req.url === '/api/health') return;
       if (req.protocol !== 'https') return reply.status(400).send({ error: { code: 'TLS_REQUIRED', message: 'HTTPS zorunludur.' } });
     });
   }
@@ -96,5 +99,7 @@ export async function buildApp(deps: Deps): Promise<FastifyInstance> {
   await app.register(async (s) => paymentServiceRoutes(s, { deps, guards }));
   await app.register(async (s) => utilityRoutes(s, { deps, guards }));
   await app.register(async (s) => adminUserOpsRoutes(s, { deps, guards }));
+
+  if (config.WEB_DIST_DIR) registerWebStatic(app, config.WEB_DIST_DIR);
   return app;
 }

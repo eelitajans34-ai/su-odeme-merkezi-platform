@@ -119,7 +119,7 @@ APP_ENV=production npm run worker:prod -w apps/api   # İşçi (ayrı süreç)
 - Veritabanı kullanıcısı yalnızca uygulama şemasında yetkili olmalı; `audit_logs` için UPDATE/DELETE yetkisi verilmemeli (tetikleyici zaten engeller).
 - Webhook IP izin listesi (sağlayıcı yayımlıyorsa) Yönetim → Güvenli Ödeme Hizmeti → B'den girilir.
 
-Render ile tek tıkla kurulum: depo kökündeki `render.yaml` ve adım adım rehber için [RENDER_KURULUM.md](RENDER_KURULUM.md). `WEB_DIST_DIR` tanımlıysa API, derlenmiş web arayüzünü aynı adresten sunar (tek servis, aynı köken; ayrı CDN gerekmez).
+Render (ücretsiz plan, deneme) ile tek tıkla kurulum: depo kökündeki `render.yaml` ve adım adım rehber için [RENDER_KURULUM.md](RENDER_KURULUM.md). `WEB_DIST_DIR` tanımlıysa API, derlenmiş web arayüzünü aynı adresten sunar (tek servis, aynı köken; ayrı CDN gerekmez).
 
 Dockerfile ile: `docker build -t su-odeme-merkezi .` (bkz. kök dizindeki Dockerfile).
 

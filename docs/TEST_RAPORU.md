@@ -89,3 +89,5 @@ npm test
 | dizin dışına çıkma denemesi dosya sızdırmaz | Geçti |
 
 Ek olarak üretim modunda (`APP_ENV=production`, simülatörler kapalı) yerelde çalıştırıldı: sağlık denetimi TLS'siz yanıt verir, diğer uçlar HTTPS ister, ödeme sağlayıcısı "Kurulum bekleniyor" görünür, SMTP yokken süper yönetici daveti "gönderilemedi" diye açıkça hata verir ve `--reissue-invite` ile tekrarlanabilir.
+
+Render ücretsiz plan başlatma betiği (`scripts/render-ucretsiz-baslat.sh`) yerelde üretim modunda, sahte bir SMTP alıcısıyla denendi: ilk açılışta migrasyonlar uygulandı, e-posta kanalı kasaya yazıldı ve süper yönetici daveti tek e-posta olarak gitti. İkinci açılışta hiçbir şey değişmedi (yeni denetim kaydı ve e-posta yok). `SUPER_ADMIN_REISSUE_INVITE=true` ile yeni davet gitti. SMTP adresi günlüklerde ve API ile işçi süreçlerinin ortamında yer almadı.

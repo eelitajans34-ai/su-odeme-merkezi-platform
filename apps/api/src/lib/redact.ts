@@ -33,3 +33,22 @@ export const LOG_REDACT_PATHS = [
   '*.value',
   '*.apiKey',
 ];
+
+/** Adres satırındaki gizli sorgu değerlerini (ör. ?token=...) günlüğe yazmadan önce maskeler. */
+export function redactUrl(url: string): string {
+  const q = url.indexOf('?');
+  if (q < 0) return url;
+  const params = url.slice(q + 1).split('&').map((pair) => {
+    const eq = pair.indexOf('=');
+    if (eq < 0) return pair;
+    let key = pair.slice(0, eq);
+    try { key = decodeURIComponent(key); } catch { /* olduğu gibi */ }
+    return SENSITIVE_KEY.test(key) || /^(code|state|sig|key)$/i.test(key) ? `${pair.slice(0, eq)}=[GİZLENDİ]` : pair;
+  });
+  return `${url.slice(0, q)}?${params.join('&')}`;
+}
+
+/** pino istek serileştiricisi: Fastify varsayılanıyla aynı alanlar, adres maskelenmiş. */
+export function serializeRequest(req: { method: string; url: string; host?: string; hostname?: string; ip?: string; socket?: { remotePort?: number } }) {
+  return { method: req.method, url: redactUrl(req.url), host: req.host ?? req.hostname, remoteAddress: req.ip, remotePort: req.socket?.remotePort };
+}

@@ -1,76 +1,76 @@
-# Render'a kurulum (Frankfurt)
+# Render'a kurulum (Frankfurt, ücretsiz plan)
 
-Bu rehber sistemi Render üzerinde **"Kurulum bekleniyor"** durumunda yayına alır. Bu durumda hiçbir ödeme alınmaz. Ödeme kuruluşu ve su idaresi entegrasyonunu süper yönetici sonradan yönetim panelinden girer. Bunun için seçilen kurumun bağlantı modülünün, kurumun resmî API dokümanına göre yazılmış olması gerekir (bkz. ENTEGRASYON_REHBERI.md).
+Bu rehber sistemi Render'ın **ücretsiz planında**, **"Kurulum bekleniyor"** durumunda yayına alır. Bu kurulumda hiçbir ödeme alınmaz. Ödeme kuruluşu ve su idaresi entegrasyonunu süper yönetici sonradan yönetim panelinden girer. Bunun için seçilen kurumun bağlantı modülünün, kurumun resmî API dokümanına göre yazılmış olması gerekir (bkz. ENTEGRASYON_REHBERI.md).
 
-Kurulum dosyası depo kökündeki `render.yaml` dosyasıdır. Bu dosya gizli bilgi içermez.
+Kurulum dosyası depo kökündeki `render.yaml` dosyasıdır. Dosya gizli bilgi içermez.
 
-## Ne kurulur
+## Ücretsiz planın sınırları
 
-| Bileşen | Render türü | Not |
-|---|---|---|
-| `su-odeme-merkezi` | Web service (Node 22, starter) | API ve web arayüzü aynı adresten sunulur. Her dağıtımdan önce veritabanı migrasyonları çalışır. |
-| `su-odeme-isci` | Background worker (starter) | Durum sorguları, mutabakat ve bildirimler |
-| `su-odeme-db` | PostgreSQL 17 (basic-256mb) | Yalnızca Render iç ağından erişilir |
+| Sınır | Etkisi |
+|---|---|
+| Ücretsiz PostgreSQL yaklaşık **30 gün** sonra sona erer | Veriler (kullanıcılar, abonelikler, süper yönetici hesabı) silinir. Yeniden kurulum aşağıda anlatılıyor. |
+| Shell, preDeploy ve ayrı işçi servisi yok | Migrasyon, e-posta kanalı, süper yönetici daveti ve arka plan işçisi her açılışta `scripts/render-ucretsiz-baslat.sh` ile çalışır. Bu adımlar tekrar çalıştırılmaya dayanıklıdır, ikinci açılışta hiçbir şeyi değiştirmez. |
+| 15 dakika istek gelmezse servis uyur | Sonraki ilk açılış yaklaşık 1 dakika sürer. Uyurken arka plan işleri de durur. Ödeme alınmadığı sürece bunun bir zararı yoktur. |
 
-`AUTH_SECRET` ve `SECRETS_ENCRYPTION_KEY` değerlerini Render kendisi üretir; bu değerler depoya yazılmaz. Ücretler Render'ın güncel fiyat listesine bağlıdır. Plan adlarını kurulum sırasında değiştirebilirsiniz.
+Bu kurulum **deneme ve tanıtım** içindir. Gerçek ödeme alınmadan önce ücretli plana geçilmelidir. Bunun için web servisi ve veritabanı planı yükseltilir, isteğe bağlı olarak işçi ayrı bir servis yapılır.
 
-## Adımlar
+## Hazırlık: Gmail ile e-posta gönderimi
 
-### 1. Render hesabı ve depo bağlantısı
-1. https://render.com adresinde hesap açın. Bir ödeme yöntemi ekleyin; starter planlar ücretlidir.
-2. **New → Blueprint** seçin. GitHub'ı bağlayın ve `su-odeme-merkezi-platform` deposunu seçin.
-3. Render `render.yaml` dosyasını okur ve sizden şu değerleri ister:
+Süper yönetici daveti e-postayla gönderilir. En kolay yol bir Gmail hesabıdır:
+
+1. Gmail hesabında **iki adımlı doğrulama** açık olmalı.
+2. https://myaccount.google.com/apppasswords adresinden "Su Ödeme Merkezi" adıyla bir **uygulama şifresi** oluşturun. Google 16 harfli bir şifre gösterir. Boşlukları silip bir kenara not edin.
+3. SMTP adresini şu biçimde hazırlayın. E-posta adresindeki `@` işaretini **`%40`** olarak yazın:
+   ```
+   smtps://ADRESINIZ%40gmail.com:UYGULAMASIFRESI@smtp.gmail.com:465
+   ```
+   Bu değeri hiçbir sohbete veya dosyaya yazmayın. Yalnızca Render'daki `SMTP_URL` alanına girin.
+
+## Kurulum
+
+1. https://dashboard.render.com adresinde **New → Blueprint** seçin ve `su-odeme-merkezi-platform` deposunu seçin. Dal `main` kalsın.
+2. Render sizden şu değerleri ister:
 
 | Değişken | Ne girilir |
 |---|---|
-| `APP_BASE_URL` | `https://su-odeme-merkezi.onrender.com` (kendi alan adınızı bağlayacaksanız o adres) |
-| `API_PUBLIC_URL` | `APP_BASE_URL` ile aynı |
-| `CORS_ALLOWED_ORIGINS` | `APP_BASE_URL` ile aynı |
-| `SUPER_ADMIN_EMAIL` | Süper yöneticinin e-posta adresi |
-| `EMAIL_FROM` | Gönderen adı ve adresi, ör. `Su Ödeme Merkezi <bildirim@alanadiniz.com.tr>` |
+| `APP_BASE_URL` | `https://su-odeme-merkezi.onrender.com` |
+| `API_PUBLIC_URL` | aynı adres |
+| `CORS_ALLOWED_ORIGINS` | aynı adres |
+| `SUPER_ADMIN_EMAIL` | süper yöneticinin e-posta adresi |
+| `EMAIL_FROM` | `Su Ödeme Merkezi <ADRESINIZ@gmail.com>` (Gmail'de gönderen, SMTP hesabıyla aynı olmalı) |
+| `SMTP_URL` | yukarıda hazırlanan `smtps://...` adresi |
 
-4. **Apply** deyin. İlk derleme birkaç dakika sürer. `https://.../api/health` adresi `{"status":"ok"}` döndürüyorsa kurulum tamamdır.
+3. **Apply** deyin. İlk derleme birkaç dakika sürer. Render servise başka bir ad verdiyse (ör. `su-odeme-merkezi-abcd.onrender.com`), üç adres alanını o adrese göre düzeltin ve **Manual Deploy** yapın.
+4. **Logs** sekmesinde şu satırlar görünmelidir:
+   - `5 migration uygulandı.`
+   - `E-posta kanalı kaydedildi (ACTIVE).`
+   - `Süper yönetici daveti SUPER_ADMIN_EMAIL adresine e-posta ile gönderildi.`
+5. `https://.../api/health` adresi `{"status":"ok"}` döndürmelidir.
+6. Süper yönetici e-postadaki bağlantıdan (24 saat geçerli, tek kullanımlık) parolasını belirler ve **doğrulayıcı uygulama (TOTP)** kurar. Bu adım zorunludur. 10 kurtarma kodunu saklamalıdır. Varsayılan parola yoktur.
+7. Davet geldikten sonra güvenlik için Render'da **Environment** bölümünden `SMTP_URL` değişkenini silebilirsiniz. Değer şifreli kasaya yazılmıştır, e-posta göndermeye devam eder.
 
-> **Şifreleme anahtarını yedekleyin:** Render panelinde **Env Groups → su-odeme-ortak → SECRETS_ENCRYPTION_KEY** değerini bir parola yöneticisine kaydedin. Bu anahtar kaybolursa kasadaki gizli bilgiler (ödeme anahtarları, SMTP) çözülemez ve hepsinin yeniden girilmesi gerekir.
+> **Şifreleme anahtarını yedekleyin:** Render'da **Environment** bölümündeki `SECRETS_ENCRYPTION_KEY` değerini bir parola yöneticisine kaydedin. Bu anahtar kaybolursa kasadaki gizli bilgiler çözülemez.
 
-### 2. Alan adı (isteğe bağlı ama önerilir)
-1. **su-odeme-merkezi → Settings → Custom Domains** bölümünden alan adınızı ekleyin. Render'ın gösterdiği DNS kaydını alan adı sağlayıcınıza girin. TLS sertifikası otomatik gelir.
-2. Ardından `APP_BASE_URL`, `API_PUBLIC_URL` ve `CORS_ALLOWED_ORIGINS` değerlerini yeni adrese çevirin ve yeniden dağıtın.
+### Davet gelmediyse
+- Logs'ta "e-posta kanalı yapılandırılamadı" veya "davet gönderilemedi" yazıyorsa sorun büyük olasılıkla SMTP bilgisindedir. Sık yapılan hatalar: `%40` yazılmaması, uygulama şifresinde boşluk bırakılması, iki adımlı doğrulamanın kapalı olması.
+- `SMTP_URL` değerini düzeltip **Manual Deploy** yapın.
+- Süper yönetici hesabı "davet edildi" durumunda kaldıysa ya da davetin 24 saatlik süresi dolduysa: **Environment** bölümünde `SUPER_ADMIN_REISSUE_INVITE` değerini `true` yapın ve **Manual Deploy** yapın. Yeni davet geldikten sonra değeri **mutlaka `false` yapın**. Aksi hâlde servis her uyanışta yeni davet gönderir ve önceki bağlantı geçersiz olur. Hesap etkinleştirildikten sonra bu değişkenin bir etkisi yoktur.
 
-### 3. E-posta (SMTP)
-Süper yönetici daveti e-postayla gider, bu yüzden bu adım davetten önce yapılmalıdır.
+## 30 gün sonra yeniden kurulum
 
-1. Bir SMTP hesabı edinin. Kurumsal e-postanız, Brevo, Mailgun, Amazon SES gibi bir hizmet olabilir. Gönderen alan adı için SPF, DKIM ve DMARC kayıtlarını yapın.
-2. **su-odeme-merkezi → Shell** sekmesinde şu komutu çalıştırın. SMTP adresi ekrana veya geçmişe yazılmasın diye `read -s` ile girilir:
-   ```bash
-   cd apps/api
-   read -rs SMTP_URL   # smtps://kullanici:parola@sunucu:465 yazıp Enter
-   printf '%s' "$SMTP_URL" | npm run configure-email:prod -- --provider "Sağlayıcı adı" --status ACTIVE
-   unset SMTP_URL
-   ```
+Render, ücretsiz veritabanının süresi dolmadan e-posta ile uyarır.
 
-### 4. Süper yönetici
-Aynı Shell'de şu komutu çalıştırın:
-```bash
-cd apps/api && npm run bootstrap-super-admin:prod
-```
-- Komut, `SUPER_ADMIN_EMAIL` adresine **24 saat geçerli, tek kullanımlık** bir davet gönderir. Varsayılan parola yoktur.
-- Süper yönetici davet bağlantısından parolasını belirler ve **doğrulayıcı uygulama (TOTP)** kurar. Bu adım zorunludur. 10 kurtarma kodunu güvenli bir yerde saklamalıdır.
-- Komut tekrar çalıştırılırsa yeni yönetici oluşturmaz. E-posta gönderilemezse komut bunu açıkça söyler; SMTP bilgisini düzeltip `npm run bootstrap-super-admin:prod -- --reissue-invite` çalıştırın. Davetin süresi dolduğunda da aynı komut kullanılır.
-
-### 5. Yedekleme
-Render PostgreSQL günlük otomatik yedek alır; saklama süresi plana göre değişir. Yayın öncesi kontrol listesindeki "geri yükleme doğrulandı" maddesi için şu adımları izleyin:
-1. Render panelinden bir yedeği **ayrı bir test veritabanına** geri yükleyin.
-2. Sonucu Yönetim → Sistem ve yedekleme sayfasından kaydedin.
-
-Bir onay kutusu kanıt sayılmaz.
+1. Render panelinde süresi dolan `su-odeme-db` veritabanını silin.
+2. **Blueprints** bölümünde kurulumu açıp **Manual Sync** deyin (veya Blueprint'i yeniden uygulayın). Yeni ve boş bir veritabanı oluşur.
+3. Servisi **Manual Deploy** ile yeniden başlatın. Açılışta migrasyonlar çalışır, e-posta kanalı kurulur ve süper yöneticiye yeni bir davet gider. Bunun için `SMTP_URL` değişkeninin hâlâ tanımlı olması gerekir; daha önce sildiyseniz tekrar girin.
+4. Önceki veriler geri gelmez. Kalıcı veri gerekiyorsa veritabanı ücretli plana yükseltilmelidir.
 
 ## Bu kurulumdan sonra sistemin durumu
 - Sitede kayıt ve giriş çalışır, abonelik eklenebilir. Su idaresi bağlı olmadığı için abonelik doğrulanamaz.
 - Kart yükleme ve fatura ödemede tüm yöntemler (kart, QR, NFC) **"Kurulum bekleniyor"** görünür. Ödeme alınmaz.
-- Simülatörler üretimde kapalıdır. Üst şeritteki "TEST MODU" uyarısı, canlı moda geçilene kadar görünür.
+- Simülatörler üretimde kapalıdır. Üst şeritteki "TEST MODU" uyarısı canlı moda geçilene kadar görünür.
 - Canlı mod; sözleşme kaydı, gerçek tarife, canlı anahtarlar ve kanıtlı yayın öncesi kontrol listesi olmadan açılamaz.
 
 ## Güncelleme ve geri alma
-- `autoDeploy` kapalıdır. Yeni sürüm `main` dalına girdikten sonra Render panelinden **Manual Deploy** ile dağıtılır. Migrasyonlar dağıtımdan önce otomatik çalışır.
-- Geri almak için Render'da **Deploys** listesinden önceki sürüme **Rollback** yapılır. Migrasyonlar yalnızca ileriye doğru çalıştığı için şema geri alınmaz; ayrıntı için KURULUM.md §10'a bakın.
+- `autoDeploy` kapalıdır. Yeni sürüm `main` dalına girdikten sonra Render panelinden **Manual Deploy** ile dağıtılır. Migrasyonlar açılışta otomatik çalışır.
+- Geri almak için **Deploys** listesinden önceki sürüme **Rollback** yapılır. Migrasyonlar yalnızca ileriye doğru çalışır; ayrıntı için KURULUM.md §10'a bakın.

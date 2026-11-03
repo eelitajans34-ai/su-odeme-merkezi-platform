@@ -2,6 +2,7 @@ import { createDeps } from '../app.js';
 import { loadConfig } from '../config.js';
 import { withTransaction } from '../db.js';
 import { audit } from '../services/audit.js';
+import { sha256Hex } from '../lib/crypto.js';
 
 /**
  * E-posta (SMTP) kanalını sunucu tarafında yapılandırır. Süper yönetici daveti e-postayla gönderileceği için
@@ -16,6 +17,8 @@ const opt = (name: string) => {
 };
 const providerName = opt('provider');
 const status = opt('status') ?? 'ACTIVE';
+// Her açılışta çalışan kurulumlar için (ör. Render ücretsiz plan): değer ve durum aynıysa hiçbir şey yazılmaz, denetim kaydı şişmez.
+const skipIfUnchanged = args.includes('--skip-if-unchanged');
 if (!providerName || !['TEST', 'ACTIVE'].includes(status)) {
   console.error('Kullanım: printf %s "$SMTP_URL" | configure-email --provider <ad> [--status TEST|ACTIVE]');
   process.exit(2);
@@ -36,6 +39,14 @@ if (!ref || !config.EMAIL_FROM) {
 }
 const deps = createDeps(config);
 try {
+  if (skipIfUnchanged) {
+    const cur = await deps.secrets.meta(deps.db, ref);
+    const ch = (await deps.db.query(`SELECT status, secret_ref FROM notification_channels WHERE channel = 'EMAIL'`)).rows[0];
+    if (cur?.isSet && cur.fingerprint === sha256Hex(smtpUrl).slice(0, 8) && ch?.status === status && ch?.secret_ref === ref) {
+      console.log('E-posta kanalı zaten bu değerle yapılandırılmış; değişiklik yapılmadı.');
+      process.exit(0);
+    }
+  }
   const meta = await withTransaction(deps.db, async (c) => {
     const m = await deps.secrets.put(c, { ref, environment: ref.split('/')[1] === 'live' ? 'LIVE' : 'TEST', value: smtpUrl, actorId: null });
     await c.query(`UPDATE notification_channels SET provider_name = $1, status = $2, secret_ref = $3, updated_at = now() WHERE channel = 'EMAIL'`, [providerName, status, ref]);

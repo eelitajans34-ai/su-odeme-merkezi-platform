@@ -2,7 +2,7 @@
 
 Tarih: 2026-10-24 · Ortam: Node 22, PostgreSQL (yerel), Vitest 5
 
-**Sonuç: 47/47 test geçti.** API tip denetimi ve web tip denetimi temiz, web üretim derlemesi başarılı, `npm audit --omit=dev --audit-level=high`: 0 açık.
+**Sonuç: 51/51 test geçti.** API tip denetimi ve web tip denetimi temiz, web üretim derlemesi başarılı, `npm audit --omit=dev --audit-level=high`: 0 açık.
 
 Testler gerçek PostgreSQL üzerinde çalışır (bellek içi taklit veritabanı yoktur). Dış sistemler (ödeme kuruluşu, su idaresi) yalnızca geliştirme simülatörüyle temsil edilir; bu nedenle testler **gerçek entegrasyonun çalıştığını kanıtlamaz**, platformun kurallarını (durum makinesi, yetki, idempotency, imza doğrulama, dürüst durum gösterimi) doğrular.
 
@@ -78,3 +78,14 @@ docker compose up -d db
 npm ci
 npm test
 ```
+
+## Web arayüzünün API ile aynı adresten sunulması (web-static.test.ts)
+
+| Test | Sonuç |
+|---|---|
+| kök ve uygulama içi yollar index.html döner | Geçti |
+| derlenmiş dosyalar doğru türle ve uzun önbellekle sunulur | Geçti |
+| bilinmeyen /api yolları JSON 404 kalır | Geçti |
+| dizin dışına çıkma denemesi dosya sızdırmaz | Geçti |
+
+Ek olarak üretim modunda (`APP_ENV=production`, simülatörler kapalı) yerelde çalıştırıldı: sağlık denetimi TLS'siz yanıt verir, diğer uçlar HTTPS ister, ödeme sağlayıcısı "Kurulum bekleniyor" görünür, SMTP yokken süper yönetici daveti "gönderilemedi" diye açıkça hata verir ve `--reissue-invite` ile tekrarlanabilir.

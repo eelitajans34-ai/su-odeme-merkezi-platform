@@ -1,0 +1,94 @@
+# Render Blueprint — Su Ödeme Merkezi (Frankfurt)
+# Bu dosya GİZLİ BİLGİ İÇERMEZ. Anahtarlar Render tarafından üretilir (generateValue) veya
+# kurulum sırasında Render panelinden girilir (sync: false). Ödeme kuruluşu / su idaresi anahtarları
+# buraya değil, süper yönetici tarafından uygulamanın yönetim panelinden şifreli kasaya girilir.
+#
+# Üretimde simülatörler kapalıdır: gerçek entegrasyon kurulana kadar ödeme ve su idaresi
+# "Kurulum bekleniyor" görünür ve hiçbir ödeme alınmaz.
+
+envVarGroups:
+  - name: su-odeme-ortak
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: AUTH_SECRET
+        generateValue: true
+      # Şifreli kasa anahtarı (base64, 256 bit). API ve işçi AYNI değeri kullanmalıdır.
+      # Kaybedilirse kasadaki gizli bilgiler çözülemez: Render panelinden güvenli bir yere yedekleyin.
+      - key: SECRETS_ENCRYPTION_KEY
+        generateValue: true
+      - key: SECRET_MANAGER_REFERENCE
+        value: render-env+local-encrypted-db
+      - key: PAYMENT_PROVIDER_MODE
+        value: TEST
+      - key: WATER_UTILITY_MODE
+        value: TEST
+      - key: MFA_REQUIRED_FOR_SUPER_ADMIN
+        value: "true"
+      - key: EMAIL_PROVIDER_SECRET_REF
+        value: notification/live/smtp-url
+      # Aşağıdakiler kurulumda Render panelinden girilir (depoya yazılmaz)
+      - key: APP_BASE_URL # ör. https://su-odeme-merkezi.onrender.com veya https://alanadiniz.com.tr
+        sync: false
+      - key: API_PUBLIC_URL # APP_BASE_URL ile aynı (web ve API tek adresten sunulur)
+        sync: false
+      - key: SUPER_ADMIN_EMAIL # yalnızca bootstrap-super-admin komutu okur; kayıt olmak yetki vermez
+        sync: false
+      - key: EMAIL_FROM # ör. "Su Ödeme Merkezi <bildirim@alanadiniz.com.tr>"
+        sync: false
+
+databases:
+  - name: su-odeme-db
+    region: frankfurt
+    plan: basic-256mb
+    postgresMajorVersion: "17"
+    databaseName: su_odeme
+    user: su_odeme
+    ipAllowList: [] # yalnızca Render iç ağından erişim
+
+services:
+  - type: web
+    name: su-odeme-merkezi
+    runtime: node
+    region: frankfurt
+    plan: starter
+    branch: main
+    buildCommand: npm ci && npm run build
+    preDeployCommand: npm run migrate:prod -w apps/api
+    startCommand: npm start -w apps/api
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      - fromGroup: su-odeme-ortak
+      - key: DATABASE_URL
+        fromDatabase:
+          name: su-odeme-db
+          property: connectionString
+      - key: HOST
+        value: 0.0.0.0
+      - key: TRUST_PROXY
+        value: "true"
+      - key: WEB_DIST_DIR
+        value: ../web/dist
+      - key: CORS_ALLOWED_ORIGINS # APP_BASE_URL ile aynı
+        sync: false
+      - key: NODE_VERSION
+        value: "22"
+
+  - type: worker
+    name: su-odeme-isci
+    runtime: node
+    region: frankfurt
+    plan: starter
+    branch: main
+    buildCommand: npm ci && npm run build -w apps/api
+    startCommand: npm run worker:prod -w apps/api
+    autoDeploy: false
+    envVars:
+      - fromGroup: su-odeme-ortak
+      - key: DATABASE_URL
+        fromDatabase:
+          name: su-odeme-db
+          property: connectionString
+      - key: NODE_VERSION
+        value: "22"

@@ -24,6 +24,7 @@ Süper yönetici: `.env` içinde `SUPER_ADMIN_EMAIL` tanımlayıp `npm run boots
 | [docs/ANALIZ_RAPORU.md](docs/ANALIZ_RAPORU.md) | Kapsam, eksik bilgiler, riskler |
 | [docs/MIMARI.md](docs/MIMARI.md) | Mimari, durum makineleri, dosya yapısı |
 | [docs/KURULUM.md](docs/KURULUM.md) | Kurulum, süper yönetici, sağlayıcı yapılandırması, dağıtım, yedekleme, geri alma, sorun giderme |
+| [docs/RENDER_KURULUM.md](docs/RENDER_KURULUM.md) | Render (Frankfurt) üzerinde adım adım kurulum, SMTP ve süper yönetici daveti |
 | [docs/GUVENLIK.md](docs/GUVENLIK.md) | Güvenlik tasarımı ve bilinen sınırlamalar |
 | [docs/YAYIN_ONCESI_KONTROL.md](docs/YAYIN_ONCESI_KONTROL.md) | Canlıya geçiş kontrol listesi |
 | [docs/KVKK_HAZIRLIK.md](docs/KVKK_HAZIRLIK.md) | KVKK teknik hazırlığı (uyum iddiası değildir) |

@@ -70,7 +70,8 @@ services:
       # yazılır; ardından bu değişkeni Render panelinden silebilirsiniz.
       - key: SMTP_URL
         sync: false
-      # Yalnızca davet yeniden gönderilecekse geçici olarak "true" yapılır, sonra silinir.
+      # Davet süresi dolmuşsa/gönderilemediyse açılışta kendiliğinden yenilenir. "true": geçerli davet olsa bile
+      # yenisini ZORLA gönderir (her açılışta) — yalnızca geçici; davet gelince hemen "false" yapın.
       - key: SUPER_ADMIN_REISSUE_INVITE
         value: "false"
       - key: SMTP_PROVIDER_NAME

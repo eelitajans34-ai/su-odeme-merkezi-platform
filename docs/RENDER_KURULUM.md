@@ -54,7 +54,8 @@ Süper yönetici daveti e-postayla gönderilir. En kolay yol bir Gmail hesabıd�
 ### Davet gelmediyse
 - Logs'ta "e-posta kanalı yapılandırılamadı" veya "davet gönderilemedi" yazıyorsa sorun büyük olasılıkla SMTP bilgisindedir. Sık yapılan hatalar: `%40` yazılmaması, uygulama şifresinde boşluk bırakılması, iki adımlı doğrulamanın kapalı olması.
 - `SMTP_URL` değerini düzeltip **Manual Deploy** yapın.
-- Süper yönetici hesabı "davet edildi" durumunda kaldıysa ya da davetin 24 saatlik süresi dolduysa: **Environment** bölümünde `SUPER_ADMIN_REISSUE_INVITE` değerini `true` yapın ve **Manual Deploy** yapın. Yeni davet geldikten sonra değeri **mutlaka `false` yapın**. Aksi hâlde servis her uyanışta yeni davet gönderir ve önceki bağlantı geçersiz olur. Hesap etkinleştirildikten sonra bu değişkenin bir etkisi yoktur.
+- Davet gönderilemediyse ya da 24 saatlik süresi dolduysa ayrıca bir şey yapmanız gerekmez. SMTP bilgisini düzeltip **Manual Deploy** yaptığınızda, servis açılışta geçerli bir davet bulamaz ve kendiliğinden yeni bir davet gönderir. Geçerli bir davet varken servis yeniden başlasa ya da uyansa bile yeni davet gitmez, yani elinizdeki bağlantı bozulmaz.
+- Geçerli bir davet varken yine de yenisini göndermek isterseniz (ör. e-posta silindiyse): `SUPER_ADMIN_REISSUE_INVITE` değerini `true` yapıp **Manual Deploy** yapın. Yeni davet gelir gelmez değeri **hemen `false` yapın**. Değer `true` kaldığı sürece servis her açılışta yeni davet gönderir ve önceki bağlantı geçersiz olur.
 
 ## 30 gün sonra yeniden kurulum
 

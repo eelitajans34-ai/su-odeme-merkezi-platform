@@ -15,9 +15,10 @@ unset SMTP_URL
 
 if [ -n "${SUPER_ADMIN_EMAIL:-}" ]; then
   # Süper yönetici zaten varsa hiçbir şey yapmaz; yoksa davet e-postası gönderir. Başarısızlık siteyi durdurmaz.
-  # SUPER_ADMIN_REISSUE_INVITE=true: hesap hâlâ "davet edildi" durumundaysa yeni davet gönderir (etkin hesapta etkisizdir).
-  # Davet geldikten sonra bu değişken silinmelidir; aksi hâlde her yeniden başlatmada yeni davet gider.
-  REISSUE=()
+  # Hesap "davet edildi" durumunda ve geçerli davet yoksa (süresi dolmuş/hiç gitmemiş) yeni davet gönderilir.
+  # Geçerli bir davet varken servis uyansa bile yeni davet gitmez; elinizdeki bağlantı bozulmaz.
+  # SUPER_ADMIN_REISSUE_INVITE=true: geçerli davet olsa bile yenisini zorla gönderir (yalnızca geçici; sonra false yapın).
+  REISSUE=(--reissue-invite-if-expired)
   if [ "${SUPER_ADMIN_REISSUE_INVITE:-}" = "true" ]; then REISSUE=(--reissue-invite); fi
   node dist/src/cli/bootstrap-super-admin.js "${REISSUE[@]}" || echo "UYARI: süper yönetici daveti gönderilemedi (ayrıntı yukarıda)."
 fi

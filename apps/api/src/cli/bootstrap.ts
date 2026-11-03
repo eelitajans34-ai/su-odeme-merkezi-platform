@@ -7,6 +7,8 @@ export interface BootstrapOptions {
   email: string | undefined;
   confirmExistingAccount?: boolean;
   reissueInvite?: boolean;
+  /** Yalnızca geçerli (kullanılmamış, süresi dolmamış) bir davet yoksa yeniden gönderir; her açılışta güvenle çalıştırılabilir. */
+  reissueInviteIfExpired?: boolean;
 }
 
 export type BootstrapResult =
@@ -38,7 +40,16 @@ export async function bootstrapSuperAdmin(deps: Deps, opts: BootstrapOptions): P
     ).rows;
     if (existing.length > 0) {
       const same = existing.find((e) => e.email_normalized === norm);
-      if (opts.reissueInvite && same?.status === 'INVITED') {
+      if (opts.reissueInviteIfExpired && !opts.reissueInvite && same?.status === 'INVITED') {
+        const active = await c.query(
+          `SELECT 1 FROM auth_tokens WHERE user_id = $1 AND purpose = 'ADMIN_INVITE' AND used_at IS NULL AND expires_at > now() LIMIT 1`,
+          [same.id],
+        );
+        if (active.rowCount) {
+          return { status: 'ALREADY_EXISTS' as const, message: 'Süper yönetici davet edildi ve geçerli bir davet bağlantısı var; yeni davet gönderilmedi (önceki bağlantı geçerliliğini korur).' };
+        }
+      }
+      if ((opts.reissueInvite || opts.reissueInviteIfExpired) && same?.status === 'INVITED') {
         const token = await auth.createInvite(c, same.id);
         await audit(c, { actorType: 'CLI', action: 'admin.bootstrap_reissue_invite', targetType: 'user', targetId: same.id });
         return { status: 'INVITE_REISSUED' as const, userId: same.id as string, token };
@@ -74,6 +85,8 @@ export async function bootstrapSuperAdmin(deps: Deps, opts: BootstrapOptions): P
   });
   if (sent.status === 'SENT') return { status: result.status, userId: result.userId, inviteUrl: '[e-posta ile gönderildi]', delivery: 'EMAIL_SENT' };
   if (!deps.config.isProduction) return { status: result.status, userId: result.userId, inviteUrl, delivery: 'PRINTED_FOR_DEV' };
+  // Gönderilemeyen davet geçersiz kılınır: aksi hâlde "geçerli davet var" sanılıp bir sonraki açılışta yeniden denenmezdi.
+  await deps.db.query(`UPDATE auth_tokens SET used_at = now() WHERE user_id = $1 AND purpose = 'ADMIN_INVITE' AND used_at IS NULL`, [result.userId]);
   const reason = sent.status === 'FAILED' ? `gönderim başarısız: ${sent.error ?? 'bilinmeyen hata'}` : 'e-posta kanalı yapılandırılmadı';
   throw new Error(`Üretimde davet yalnızca e-posta ile gönderilebilir (${reason}). SMTP bilgisini düzeltin, ardından --reissue-invite ile tekrar çalıştırın.`);
 }
